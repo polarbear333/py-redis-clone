@@ -1,0 +1,1 @@
+A simple implementation of Redis written in python to focus on Redis protocol, socket handling, and also in-memory kv store. Please note that this is not meant to be fully-featured or a production based Redis implementation.
