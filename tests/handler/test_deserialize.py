@@ -18,3 +18,6 @@ def testDeserializeBulkString():
 
 def testDeserializeArray():
     assert parse(b"*2\r\n:1\r\n+two\r\n") == [1, "two"]
+
+def testDeserializeNullArray():
+    assert parse(b"*-1\r\n") is None

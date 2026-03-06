@@ -1,6 +1,5 @@
 from typing import List
 from . import command
-
 from handler import serialize, RESPError
 from store import db
 

@@ -22,6 +22,8 @@ class RESPReader:
                 self._buf.extend(chunk)
     async def read_command(self) -> List[bytes]:
         value = await self.read_value()
+        if not isinstance(value, list) or not value:
+            raise RESPError("expected a non-empty array command")
         if not all(isinstance(arg, bytes) for arg in value):
             raise RESPError("command args must be bulk strings")
         return value
