@@ -4,27 +4,41 @@ import logging
 from handler import RESPReader, serialize, RESPError
 from commands import REGISTRY
 
+FLUSH_SIZE = 16 * 1024
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
 async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     addr = writer.get_extra_info('peername')
     logging.info(f"client connected: {addr}")
     resp_reader = RESPReader(reader)
+    outbuf = bytearray()
     try:
         while True:
             try:
                 command_list = await resp_reader.read_command()
-                response_bytes = await dispatch(command_list)
-                writer.write(response_bytes)
-                await writer.drain()
-            except (ConnectionError, OSError):
-                break 
+            except OSError:
+                break
+            except RESPError as e:
+                outbuf.extend(serialize(e))
+                break  
+            try:
+                outbuf.extend(await dispatch(command_list))
             except Exception as e:
-                logging.error(f"unexpected error handling client {addr}: {e}")
-            finally:
-                logging.info(f"client disconenct: {addr}")
-                writer.close()
-                await writer.wait_closed()
+                logging.error(f"dispatch error for {addr}: {e}")
+                outbuf.extend(serialize(RESPError("ERR internal server error")))
+            if len(outbuf) >= FLUSH_SIZE or reader.at_eof():
+                writer.write(bytes(outbuf))
+                outbuf.clear()
+                await writer.drain()
+    except Exception as e:
+        logging.error(f"unexpected error handling client {addr}: {e}")
+    finally:
+        if outbuf:
+            writer.write(bytes(outbuf))
+            await writer.drain()
+        logging.info(f"client disconnected: {addr}")
+        writer.close()
+        await writer.wait_closed()
 
 async def dispatch(command_list: list[bytes]) -> bytes:
     cmd_name = command_list[0].upper()
@@ -33,9 +47,10 @@ async def dispatch(command_list: list[bytes]) -> bytes:
 
     if not handler:
         return serialize(RESPError(f"unknown command '{cmd_name.decode()}'"))
-
     try:
         return await handler(args)
+    except RESPError as e:
+        raise 
     except Exception as e:
         logging.error(f"command error in {cmd_name}: {e}")
         return serialize(RESPError("internal server error"))
