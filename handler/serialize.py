@@ -15,16 +15,17 @@ def serialize(value: Any) -> bytes:
         return b"$%d\r\n%s\r\n" % (len(value), value)
         
     if isinstance(value, str):
-        if "\r" not in value and "\n" not in value:
-            return b"+%s\r\n" % value.encode('utf-8')
         encoded = value.encode('utf-8')
-        return b"$%d\r\n%s\r\n" % (len(encoded), encoded)
+        if "\r" not in value and "\n" not in value:
+            return b"+" + encoded + b"\r\n"
+        return b"$%d\r\n" % (len(encoded),) + encoded + b"\r\n"
         
     if isinstance(value, (Exception, RESPError)):
         msg = str(value)
         if not any(msg.startswith(p) for p in ("ERR", "WRONGTYPE", "NOAUTH")):
             msg = f"ERR {msg}"
-        return b"-%s\r\n" % msg.encode('utf-8')
+        encoded = msg.encode('utf-8')
+        return b"-" + encoded + b"\r\n"
         
     if isinstance(value, (list, tuple)):
         parts = [b"*%d\r\n" % len(value)]

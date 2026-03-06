@@ -24,7 +24,7 @@ def _parse_error(data: bytes | bytearray, pos: int) -> Tuple[RESPError, int]:
     if end == -1: raise IncompleteData()
     return RESPError(data[pos:end].decode('utf-8')), end + 2
 
-def _parse_integer(data: bytes | bytearray, pos: int) -> Tuple[RESPError, int]:
+def _parse_integer(data: bytes | bytearray, pos: int) -> Tuple[int, int]:
     end = _find_crlf(data, pos)
     if end == -1:
         raise IncompleteData()
@@ -63,7 +63,7 @@ def _parse_array(data: bytes | bytearray, pos: int) -> Tuple[Optional[List[Any]]
     return items, current_pos
 
 PARSERS: dict[int, Callable[[Union[bytes, bytearray], int], Tuple[Any, int]]] = {
-b'+'[0]: _parse_simple_string,
+    b'+'[0]: _parse_simple_string,
     b'-'[0]: _parse_error,
     b':'[0]: _parse_integer,
     b'$'[0]: _parse_bulk_string,

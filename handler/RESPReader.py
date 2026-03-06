@@ -23,6 +23,6 @@ class RESPReader:
                 self._buf.extend(chunk)
     async def read_command(self) -> List[bytes]:
         value = await self.read_value()
-        if not isinstance(value, list):
-            raise deserialize.RESPError(f"expected Array, got {type(value).__name__}")
+        if not all (isinstance(arg, bytes) for arg in value):
+            raise deserialize.RESPError("command args must be bulk strings")
         return value
