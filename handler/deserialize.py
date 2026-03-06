@@ -43,7 +43,6 @@ def _parse_bulk_string(data: bytes | bytearray, pos: int) -> Tuple[Optional[byte
     
     if body_end + 2 > len(data):
         raise IncompleteData()
-
     return bytes(data[body_start:body_end]), body_end + 2
 
 def _parse_array(data: bytes | bytearray, pos: int) -> Tuple[Optional[List[Any]], int]:
@@ -59,7 +58,6 @@ def _parse_array(data: bytes | bytearray, pos: int) -> Tuple[Optional[List[Any]]
     for _ in range(count):
         item, current_pos = _parse_one(data, current_pos)
         items.append(item)
-        
     return items, current_pos
 
 PARSERS: dict[int, Callable[[Union[bytes, bytearray], int], Tuple[Any, int]]] = {
@@ -73,13 +71,10 @@ PARSERS: dict[int, Callable[[Union[bytes, bytearray], int], Tuple[Any, int]]] = 
 def _parse_one(data: bytes | bytearray, pos: int = 0) -> Tuple[Any, int]:
     if pos >= len(data):
         raise IncompleteData()
-
     prefix_byte = data[pos]
     handler = PARSERS.get(prefix_byte)
-    
     if not handler:
         raise RESPError(f"unknown RESP type byte: {chr(prefix_byte)!r}")
-        
     return handler(data, pos + 1)
 
 def deserialize(data: bytes | bytearray) -> Tuple[Any, int]:

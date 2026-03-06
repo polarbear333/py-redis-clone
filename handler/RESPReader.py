@@ -1,6 +1,6 @@
 import asyncio
 from typing import Any, List
-from . import deserialize
+from .deserialize import deserialize, IncompleteData, RESPError
 
 class RESPReader: 
     def __init__(self, stream_reader: asyncio.StreamReader):
@@ -11,10 +11,9 @@ class RESPReader:
         while True:
             try:
                 value, consumed = deserialize(self._buf)
-
                 del self._buf[:consumed]
                 return value 
-            except deserialize.IncompleteData:
+            except IncompleteData:
                 chunk = await self._reader.read(4096)
                 if not chunk:
                     if not self._buf:
@@ -23,6 +22,6 @@ class RESPReader:
                 self._buf.extend(chunk)
     async def read_command(self) -> List[bytes]:
         value = await self.read_value()
-        if not all (isinstance(arg, bytes) for arg in value):
-            raise deserialize.RESPError("command args must be bulk strings")
+        if not all(isinstance(arg, bytes) for arg in value):
+            raise RESPError("command args must be bulk strings")
         return value
