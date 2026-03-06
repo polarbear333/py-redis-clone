@@ -1,6 +1,6 @@
 import asyncio
-import deserialize, serialize
 from typing import Any, List
+from . import deserialize
 
 class RESPReader: 
     def __init__(self, stream_reader: asyncio.StreamReader):

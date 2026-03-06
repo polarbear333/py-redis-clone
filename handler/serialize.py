@@ -1,5 +1,5 @@
-from typing import Any 
-from deserialize import RESPError
+from typing import Any
+from .deserialize import RESPError
 
 def serialize(value: Any) -> bytes:
     if value is None:
