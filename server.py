@@ -14,34 +14,32 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         while True:
             try:
                 command_list = await resp_reader.read_command()
-            except ConnectionError:
+                response_bytes = await dispatch(command_list)
+                writer.write(response_bytes)
+                await writer.drain()
+            except (ConnectionError, OSError):
                 break 
-            except ConnectionAbortedError:
-                break 
-            if not command_list:
-                continue
-            cmd_name_bytes = command_list[0].upper()
-            args = command_list[1:]
-            handler = REGISTRY.get(cmd_name_bytes)
+            except Exception as e:
+                logging.error(f"unexpected error handling client {addr}: {e}")
+            finally:
+                logging.info(f"client disconenct: {addr}")
+                writer.close()
+                await writer.wait_closed()
 
-            if handler:
-                try:
-                    response_bytes = await handler(args)
-                except Exception as e:
-                    logging.error(f"Command error: {e}")
-                    response_bytes = serialize(RESPError("Internal server error"))
-            else:
-                response_bytes = serialize(RESPError(f"unknown command '{cmd_name_bytes.decode()}'"))
-            writer.write(response_bytes)
-            await writer.drain()
+async def dispatch(command_list: list[bytes]) -> bytes:
+    cmd_name = command_list[0].upper()
+    args = command_list[1:]
+    handler = REGISTRY.get(cmd_name)
 
+    if not handler:
+        return serialize(RESPError(f"unknown command '{cmd_name.decode()}'"))
+
+    try:
+        return await handler(args)
     except Exception as e:
-        logging.error(f"unexpected error handling client {addr}: {e}")
-    finally:
-        logging.info(f"client disconnected: {addr}")
-        writer.close()
-        await writer.wait_closed()
-
+        logging.error(f"command error in {cmd_name}: {e}")
+        return serialize(RESPError("internal server error"))
+        
 async def start_server(host: str = '127.0.0.1', port: int = 6379):
     server = await asyncio.start_server(handle_client, host, port)
     addrs = ', '.join(str(sockets.getsockname()) for sockets in server.sockets)
