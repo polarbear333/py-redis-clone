@@ -1,7 +1,6 @@
 import asyncio
 from typing import Any, Tuple, List, Optional, Union, Callable
-
-CRLF = b"\r\n"
+from .constants import CRLF, NULL_BULK
 
 class RESPError(Exception):
     __slots__ = ("code",)
