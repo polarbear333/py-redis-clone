@@ -1,4 +1,3 @@
-# server.py
 import asyncio
 import logging, socket
 from handler import RESPReader, serialize, RESPError
@@ -6,12 +5,11 @@ from commands import REGISTRY
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, flush_size: int = 16*1024):
-    ## manages the full lifecycle of a single client connection
+async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     addr = writer.get_extra_info('peername')
     logging.info(f"client connected: {addr}")
     resp_reader = RESPReader(reader)
-    outbuf = bytearray()
+    transport = writer.transport
     try:
         while True:
             try:
@@ -19,23 +17,27 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             except OSError:
                 break
             except RESPError as e:
-                outbuf.extend(serialize(e))
-                break  
+                writer.write(serialize(e))
+                try:
+                    await writer.drain()
+                except (ConnectionResetError, BrokenPipeError):
+                    pass
+                break
             try:
-                outbuf.extend(await dispatch(command_list))
+                reply = await dispatch(command_list)
             except Exception as e:
                 logging.error(f"dispatch error for {addr}: {e}")
-                outbuf.extend(serialize(RESPError("ERR internal server error")))
-            if len(outbuf) >= flush_size or reader.at_eof():
-                writer.write(bytes(outbuf))
-                outbuf.clear()
+                reply = serialize(RESPError("ERR internal server error"))
+            ## immediate write
+            writer.write(reply)
+            try:
                 await writer.drain()
+            except (ConnectionResetError, BrokenPipeError):
+                break
+
     except Exception as e:
         logging.error(f"unexpected error handling client {addr}: {e}")
     finally:
-        if outbuf:
-            writer.write(bytes(outbuf))
-            await writer.drain()
         logging.info(f"client disconnected: {addr}")
         writer.close()
         await writer.wait_closed()
@@ -61,6 +63,5 @@ async def start_server(host: str = '127.0.0.1', port: int = 6379):
     server = await asyncio.start_server(handle_client, host, port)
     addrs = ', '.join(str(sockets.getsockname()) for sockets in server.sockets)
     logging.info(f"serving Redis clone on {addrs}")
-
     async with server:
         await server.serve_forever()
