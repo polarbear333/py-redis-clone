@@ -1,5 +1,10 @@
-from typing import Callable, Dict, Awaitable, List
-CommandHandler = Callable[[List[bytes]], Awaitable[bytes]]
+from typing import Callable, Dict, Awaitable, List, Protocol
+from store import DataStore
+
+class Context(Protocol):
+    db: DataStore
+
+CommandHandler = Callable[[Context, List[bytes]], Awaitable[bytes]]
 REGISTRY: Dict[bytes, CommandHandler] = {}
 
 def command(name: str) -> Callable[[CommandHandler], CommandHandler]:

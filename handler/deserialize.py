@@ -4,7 +4,14 @@ from typing import Any, Tuple, List, Optional, Union, Callable
 CRLF = b"\r\n"
 
 class RESPError(Exception):
-    pass
+    __slots__ = ("code",)
+
+    def __init__(self, message: str, code: str = "ERR") -> None:
+        super().__init__(message)
+        self.code = code 
+        
+    def __str__(self) -> str:
+        return f"{self.code} {super().__str__()}"
 
 class IncompleteData(Exception):
     pass

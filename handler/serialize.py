@@ -22,10 +22,10 @@ def serialize(value: Any) -> bytes:
         
     if isinstance(value, (Exception, RESPError)):
         msg = str(value)
-        if not any(msg.startswith(p) for p in ("ERR", "WRONGTYPE", "NOAUTH")):
-            msg = f"ERR {msg}"
-        encoded = msg.encode('utf-8')
-        return b"-" + encoded + b"\r\n"
+        return b"-" + msg.encode("utf-8") + b"\r\n"
+    
+    if isinstance(value, Exception):
+        raise TypeError("cannot serialize exception of type %r" % type(value).__name__)
         
     if isinstance(value, (list, tuple)):
         parts = [b"*%d\r\n" % len(value)]

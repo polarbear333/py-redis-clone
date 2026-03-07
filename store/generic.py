@@ -54,7 +54,9 @@ class GenericStoreMixin:
         return 1
 
     def sweep_expired(self) -> int:
-        expired_keys = [key for key in list(self._expiry) if self._is_expired(key)]
-        for key in expired_keys:
-            self._delete_key(key)
-        return len(expired_keys)
+        expired = []
+        for key, exp in list(self._expiry.items()):
+            if exp <= self._now_ms():
+                expired.append(key)
+                self._delete_key(key)
+        return len(expired)
