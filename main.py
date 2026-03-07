@@ -1,6 +1,7 @@
 # main.py
 import asyncio
 import logging
+import commands.generic
 import commands.strings 
 
 from server import start_server

@@ -1,47 +1,49 @@
 from typing import List
 from . import command
-from handler import serialize, RESPError
+from handler import RESPError, serialize
 from store import db
-
-@command("PING")
-async def ping(args: List[bytes]) -> bytes:
-    if not args:
-        return serialize("PONG")  
-    if len(args) == 1:
-        return serialize(args[0]) 
-    return serialize(RESPError("wrong number of arguments for 'ping'"))
-
-@command("ECHO")
-async def echo(args: List[bytes]) -> bytes:
-    if len(args) != 1:
-        return serialize(RESPError("wrong number of arguments for 'echo'"))
-    return serialize(args[0])
+from .generic import _wrong_arity, _parse_int
 
 @command("SET")
 async def set_key(args: List[bytes]) -> bytes:
     if len(args) < 2:
-        return serialize(RESPError("wrong number of arguments for 'set'"))
-    
-    key = args[0]
-    value = args[1]
-    db.set(key, value)
-    
+        return _wrong_arity("set")
+    db.set(args[0], args[1])
     return serialize("OK")
 
 @command("GET")
 async def get_key(args: List[bytes]) -> bytes:
     if len(args) != 1:
-        return serialize(RESPError("wrong number of arguments for 'get'"))
-    
-    key = args[0]
-    value = db.get(key)
-    return serialize(value) 
+        return _wrong_arity("get")
+    try:
+        return serialize(db.get(args[0]))
+    except ValueError as exc:
+        return serialize(RESPError(str(exc)))
 
-@command("DEL")
-async def del_key(args: List[bytes]) -> bytes:
-    if not args:
-        return serialize(RESPError("wrong number of arguments for `del`"))    
-    deleted_count = 0
-    for key in args:
-        deleted_count += db.delete(key)
-    return serialize(deleted_count)
+@command("INCR")
+async def incr(args: List[bytes]) -> bytes:
+    if len(args) != 1:
+        return _wrong_arity("incr")
+    try:
+        return serialize(db.incr(args[0]))
+    except ValueError as exc:
+        return serialize(RESPError(str(exc)))
+
+@command("DECR")
+async def decr(args: List[bytes]) -> bytes:
+    if len(args) != 1:
+        return _wrong_arity("decr")
+    try:
+        return serialize(db.decr(args[0]))
+    except ValueError as exc:
+        return serialize(RESPError(str(exc)))
+
+@command("INCRBY")
+async def incrby(args: List[bytes]) -> bytes:
+    if len(args) != 2:
+        return _wrong_arity("incrby")
+    try:
+        increment = _parse_int(args[1])
+        return serialize(db.incrby(args[0], increment))
+    except ValueError as exc:
+        return serialize(RESPError(str(exc)))
