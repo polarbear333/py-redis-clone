@@ -1,5 +1,6 @@
 from typing import List, Optional
 from .value_types import T_LIST
+from . import waiters as waiter_registry
 
 class ListStoreMixin:
     def lpush(self, key: bytes, *values: bytes) -> int:
@@ -14,6 +15,12 @@ class ListStoreMixin:
         ## inserts left to right
         for v in values:
             current.insert(0, v)
+        """
+        After the push is committed, wake the first sleeping client if any.
+        notify() will resolve their future with the key name, causing their
+        coroutine to resume and perform the actual pop.
+        """
+        waiter_registry.notify(key)
         return len(current)
     
     def rpush(self, key:bytes, *values: bytes) -> int:
@@ -24,9 +31,11 @@ class ListStoreMixin:
         if current is None: 
             current = []
             self._data[key] = current 
-        
+            
         for v in values:
             current.append(v)
+
+        waiter_registry.notify(key)
         return len(current)
     
     def lpop(self, key:bytes, count: Optional[int] = None) -> int:
