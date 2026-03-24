@@ -1,7 +1,5 @@
 from typing import List
-
 from .value_types import T_NONE, type_name_for
-
 
 class GenericStoreMixin:
     def exists(self, *keys: bytes) -> int:

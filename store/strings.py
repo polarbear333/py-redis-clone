@@ -1,7 +1,5 @@
 from typing import Optional
-
 from .value_types import T_STRING
-
 
 class StringStoreMixin:
     def set(
