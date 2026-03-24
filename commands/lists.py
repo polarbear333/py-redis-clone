@@ -15,7 +15,7 @@ async def lpush(ctx: Context, args: List[bytes]) -> bytes:
 @command("RPUSH")
 async def rpush(ctx: Context, args: List[bytes]) -> bytes:
     if len(args) < 2:
-        return _wrong_arity("lpush")
+        return _wrong_arity("rpush")
     try:
         return serialize(ctx.db.rpush(args[0], *args[1:]))
     except ValueError as exc:

@@ -8,7 +8,7 @@ class ListStoreMixin:
         
         # store list directly into _data
         if current is None: 
-            currnet = []
+            current = []
             self._data[key] = current 
         
         ## inserts left to right
@@ -22,7 +22,7 @@ class ListStoreMixin:
 
         # store list directly into _data
         if current is None: 
-            currnet = []
+            current = []
             self._data[key] = current 
         
         for v in values:
