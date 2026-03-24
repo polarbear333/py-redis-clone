@@ -1,7 +1,6 @@
 from typing import List
-from . import command
+from . import command, Context
 from handler import RESPError, serialize
-from store import db
 
 def _wrong_arity(name: str) -> bytes:
     return serialize(RESPError(f"wrong number of arguments for '{name}'"))
@@ -24,25 +23,25 @@ async def echo(args: List[bytes]) -> bytes:
     return serialize(args[0])
 
 @command("DEL")
-async def del_key(args: List[bytes]) -> bytes:
+async def del_key(ctx: Context, args: List[bytes]) -> bytes:
     if not args:
         return _wrong_arity("del")
-    return serialize(db.delete(*args))
+    return serialize(ctx.db.delete(*args))
 
 @command("EXISTS")
-async def exists(args: List[bytes]) -> bytes:
+async def exists(ctx: Context, args: List[bytes]) -> bytes:
     if not args:
         return _wrong_arity("exists")
-    return serialize(db.exists(*args))
+    return serialize(ctx.db.exists(*args))
 
 @command("KEYS")
-async def keys(args: List[bytes]) -> bytes:
+async def keys(ctx: Context, args: List[bytes]) -> bytes:
     if len(args) > 1:
         return _wrong_arity("keys")
-    return serialize(db.keys())
+    return serialize(ctx.db.keys())
 
 @command("TYPE")
-async def type_cmd(args: List[bytes]) -> bytes:
+async def type_cmd(ctx: Context, args: List[bytes]) -> bytes:
     if len(args) != 1:
         return _wrong_arity("type")
-    return serialize(db.type(args[0]))
+    return serialize(ctx.db.type(args[0]))

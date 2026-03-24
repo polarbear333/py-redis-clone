@@ -1,10 +1,11 @@
 from typing import Callable, Dict, Awaitable, List, Protocol
 from store import DataStore
 
-class Context(Protocol):
-    db: DataStore
+class Context:
+    def __init__(self, db: DataStore) -> None:
+        self.db = db
 
-CommandHandler = Callable[[Context, List[bytes]], Awaitable[bytes]]
+CommandHandler = Callable[["Context", List[bytes]], Awaitable[bytes]]
 REGISTRY: Dict[bytes, CommandHandler] = {}
 
 def command(name: str) -> Callable[[CommandHandler], CommandHandler]:

@@ -1,7 +1,8 @@
 import asyncio
 import logging, socket
 from handler import RESPReader, serialize, RESPError
-from commands import REGISTRY
+from store import DataStore, db 
+from commands import REGISTRY, Context
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
@@ -9,7 +10,6 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
     addr = writer.get_extra_info('peername')
     logging.info(f"client connected: {addr}")
     resp_reader = RESPReader(reader)
-    transport = writer.transport
     try:
         while True:
             try:
@@ -24,7 +24,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                     pass
                 break
             try:
-                reply = await dispatch(command_list)
+                reply = await dispatch(command_list, db)
             except Exception as e:
                 logging.error(f"dispatch error for {addr}: {e}")
                 reply = serialize(RESPError("ERR internal server error"))
@@ -42,7 +42,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         writer.close()
         await writer.wait_closed()
 
-async def dispatch(command_list: list[bytes]) -> bytes:
+async def dispatch(command_list: list[bytes], store: DataStore) -> bytes:
     ## look up and invoke the handler for a RESP command
     cmd_name: bytes = command_list[0].upper()
     cmd_text = cmd_name.decode() 
@@ -51,8 +51,10 @@ async def dispatch(command_list: list[bytes]) -> bytes:
 
     if not handler:
         return serialize(RESPError(f"unknown command '{cmd_text}'"))
+    ## context get consutrct per request
+    ctx = Context(store)
     try:
-        return await handler(args)
+        return await handler(ctx, args)
     except RESPError as e:
         return serialize(e)
     except Exception as e:
