@@ -1,4 +1,5 @@
 from typing import Any
+from .sorted_set import SortedSet
 
 T_STRING = "string"
 T_LIST = "list"
@@ -19,6 +20,6 @@ def type_name_for(value: Any) -> str:
         return T_HASH
     if isinstance(value, set):
         return T_SET
-    if value.__class__.__name__ == "SortedSet":
+    if isinstance(value, SortedSet):
         return T_ZSET
     return T_NONE

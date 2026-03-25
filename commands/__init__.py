@@ -15,4 +15,4 @@ def command(name: str) -> Callable[[CommandHandler], CommandHandler]:
         return func
     return decorator
 
-from . import generic, strings, expiry, lists
+from . import generic, strings, expiry, lists, hashes, redis_set, zsets

@@ -22,7 +22,7 @@ class StoreBase:
         if self._is_expired(key):
             self._delete_key(key)
         return self._data.get(key)
-
+    
     def _has_value(self, key: bytes) -> bool:
         return self._get_or_none(key) is not None
 
