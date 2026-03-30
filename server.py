@@ -61,6 +61,12 @@ async def dispatch(command_list: list[bytes], store: DataStore) -> bytes:
         logging.error(f"command error in {cmd_text}: {e}")
         return serialize(RESPError("internal server error"))
         
+async def _active_expiry_loop(store: DataStore, interval: float = 0.1) -> None:
+    ## background loop to probabilistically expire keys every interval of seconds.
+    while True:
+        await asyncio.sleep(interval)
+        store._probabilistic_expire()
+
 async def start_server(
     host: str = '127.0.0.1',
     port: int = 6379,
@@ -72,8 +78,16 @@ async def start_server(
     async def _handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         await handle_client(reader, writer, store)
 
+    expiry_task = asyncio.create_task(_active_expiry_loop(store))
     server = await asyncio.start_server(_handle_client, host, port)
     addrs = ', '.join(str(sockets.getsockname()) for sockets in server.sockets)
     logging.info(f"serving Redis clone on {addrs}")
-    async with server:
-        await server.serve_forever()
+    try:
+        async with server:
+            await server.serve_forever()
+    finally:
+        expiry_task.cancel()
+        try:
+            await expiry_task
+        except asyncio.CancelledError:
+            pass

@@ -27,8 +27,14 @@ def _parse_simple_string(data: bytes | bytearray, pos: int) -> Tuple[str, int]:
 
 def _parse_error(data: bytes | bytearray, pos: int) -> Tuple[RESPError, int]:
     end = _find_crlf(data, pos)
-    if end == -1: raise IncompleteData()
-    return RESPError(data[pos:end].decode('utf-8')), end + 2
+    if end == -1:
+        raise IncompleteData()
+    raw = data[pos:end].decode("utf-8")
+    if " " in raw:
+        code, message = raw.split(" ", 1)
+    else:
+        code, message = raw, ""
+    return RESPError(message, code=code), end + 2
 
 def _parse_integer(data: bytes | bytearray, pos: int) -> Tuple[int, int]:
     end = _find_crlf(data, pos)

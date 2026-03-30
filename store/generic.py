@@ -15,8 +15,9 @@ class GenericStoreMixin:
         return deleted
 
     def keys(self) -> List[bytes]:
-        self.sweep_expired()
-        return list(self._data.keys())
+        # Rely on lazy expiry in _get_or_none; active sweep is handled by the
+        # background task in server.py so this path stays O(live-keys).
+        return [k for k in list(self._data.keys()) if not self._is_expired(k)]
 
     def type(self, key: bytes) -> str:
         value = self._get_or_none(key)
@@ -60,6 +61,20 @@ class GenericStoreMixin:
                 self._delete_key(key)
         return len(expired)
 
+    def _probabilistic_expire(self, sample: int = 20) -> int:
+        ## sample up to sample of keys from the expiry index and delete any that have passed their deadline.
+        if not self._expiry:
+            return 0
+        keys = _random.sample(list(self._expiry.keys()), min(sample, len(self._expiry)))
+        deleted = 0
+        now = self._now_ms()
+        for key in keys:
+            exp = self._expiry.get(key)
+            if exp is not None and exp <= now:
+                self._delete_key(key)
+                deleted += 1
+        return deleted
+
     def rename(self, key: bytes, newkey: bytes) -> None:
         if not self._has_value(key):
             raise ValueError("ERR no such key")
@@ -80,7 +95,8 @@ class GenericStoreMixin:
         return 1
 
     def randomkey(self) -> Optional[bytes]:
-        self.sweep_expired()
-        if not self._data:
+        ## don't sweep here and use lazy expiral instead
+        live = [k for k in self._data if not self._is_expired(k)]
+        if not live:
             return None
-        return _random.choice(list(self._data.keys()))
+        return _random.choice(live)
