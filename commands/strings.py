@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from . import command, Context
 from handler import RESPError, serialize
 from .generic import _wrong_arity, _parse_int
@@ -7,8 +7,46 @@ from .generic import _wrong_arity, _parse_int
 async def set_key(ctx: Context, args: List[bytes]) -> bytes:
     if len(args) < 2:
         return _wrong_arity("set")
-    ctx.db.set(args[0], args[1])
-    return serialize("OK")
+
+    key, value = args[0], args[1]
+    ex: Optional[int] = None
+    px: Optional[int] = None
+    nx: bool = False
+    xx: bool = False
+
+    i = 2
+    while i < len(args):
+        opt = args[i].upper()
+        if opt == b"NX":
+            nx = True
+            i += 1
+        elif opt == b"XX":
+            xx = True
+            i += 1
+        elif opt == b"EX":
+            if i + 1 >= len(args):
+                return serialize(RESPError("ERR syntax error"))
+            try:
+                ex = _parse_int(args[i + 1])
+            except (ValueError, TypeError):
+                return serialize(RESPError("ERR value is not an integer or out of range"))
+            i += 2
+        elif opt == b"PX":
+            if i + 1 >= len(args):
+                return serialize(RESPError("ERR syntax error"))
+            try:
+                px = _parse_int(args[i + 1])
+            except (ValueError, TypeError):
+                return serialize(RESPError("ERR value is not an integer or out of range"))
+            i += 2
+        else:
+            return serialize(RESPError("ERR syntax error"))
+
+    if nx and xx:
+        return serialize(RESPError("ERR XX and NX options at the same time are not compatible"))
+
+    result = ctx.db.set(key, value, ex=ex, px=px, nx=nx, xx=xx)
+    return serialize("OK" if result else None)
 
 @command("GET")
 async def get_key(ctx: Context, args: List[bytes]) -> bytes:

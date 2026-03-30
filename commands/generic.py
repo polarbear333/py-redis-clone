@@ -1,3 +1,4 @@
+import fnmatch
 from typing import List
 from . import command, Context
 from handler import RESPError, serialize
@@ -36,9 +37,15 @@ async def exists(ctx: Context, args: List[bytes]) -> bytes:
 
 @command("KEYS")
 async def keys(ctx: Context, args: List[bytes]) -> bytes:
-    if len(args) > 1:
+    if len(args) != 1:
         return _wrong_arity("keys")
-    return serialize(ctx.db.keys())
+    pattern = args[0].decode("utf-8", errors="replace")
+    all_keys = ctx.db.keys()
+    matched = [
+        k for k in all_keys
+        if fnmatch.fnmatchcase(k.decode("utf-8", errors="replace"), pattern)
+    ]
+    return serialize(matched)
 
 @command("TYPE")
 async def type_cmd(ctx: Context, args: List[bytes]) -> bytes:

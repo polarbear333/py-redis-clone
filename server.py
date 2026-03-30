@@ -1,12 +1,12 @@
 import asyncio
 import logging, socket
 from handler import RESPReader, serialize, RESPError
-from store import DataStore, db 
+from store import DataStore
 from commands import REGISTRY, Context
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 
-async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, store: DataStore):
     addr = writer.get_extra_info('peername')
     logging.info(f"client connected: {addr}")
     resp_reader = RESPReader(reader)
@@ -24,7 +24,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                     pass
                 break
             try:
-                reply = await dispatch(command_list, db)
+                reply = await dispatch(command_list, store)
             except Exception as e:
                 logging.error(f"dispatch error for {addr}: {e}")
                 reply = serialize(RESPError("ERR internal server error"))
@@ -61,8 +61,18 @@ async def dispatch(command_list: list[bytes], store: DataStore) -> bytes:
         logging.error(f"command error in {cmd_text}: {e}")
         return serialize(RESPError("internal server error"))
         
-async def start_server(host: str = '127.0.0.1', port: int = 6379):
-    server = await asyncio.start_server(handle_client, host, port)
+async def start_server(
+    host: str = '127.0.0.1',
+    port: int = 6379,
+    store: DataStore = None,
+):
+    if store is None:
+        store = DataStore()
+
+    async def _handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        await handle_client(reader, writer, store)
+
+    server = await asyncio.start_server(_handle_client, host, port)
     addrs = ', '.join(str(sockets.getsockname()) for sockets in server.sockets)
     logging.info(f"serving Redis clone on {addrs}")
     async with server:

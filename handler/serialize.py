@@ -20,13 +20,13 @@ def serialize(value: Any) -> bytes:
         if "\r" not in value and "\n" not in value:
             return b"+" + encoded + CRLF
         return b"$%d" % (len(encoded),) + CRLF + encoded + CRLF
-    if isinstance(value, (Exception, RESPError)):
+    if isinstance(value, RESPError):
         msg = str(value)
         return b"-" + msg.encode("utf-8") + CRLF
-    
+
     if isinstance(value, Exception):
         raise TypeError("cannot serialize exception of type %r" % type(value).__name__)
-        
+
     if isinstance(value, (list, tuple)):
         parts = [b"*%d" % len(value) + CRLF]
         parts.extend(serialize(item) for item in value)
