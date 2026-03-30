@@ -5,6 +5,14 @@ from handler import RESPError, serialize
 from .generic import _wrong_arity, _parse_int
 from store import waiters as waiter_registry
 
+def _make_cleanup(keys):
+    ## clean up that removes future from all watched keys.
+    _keys = tuple(keys)
+    def _cleanup(fut):
+        for k in _keys:
+            waiter_registry.cancel(k, fut)
+    return _cleanup
+
 @command("LPUSH")
 async def lpush(ctx: Context, args: List[bytes]) -> bytes:
     if len(args) < 2:
@@ -93,6 +101,8 @@ async def blpop(ctx: Context, args: List[bytes]) -> bytes:
         return serialize(RESPError("timeout is not a float or out of range"))
 
     keys = args[:-1]
+
+    ## fast path: pop from the first non-empty key immediately.
     for key in keys:
         try:
             val = ctx.db.lpop(key)
@@ -102,28 +112,24 @@ async def blpop(ctx: Context, args: List[bytes]) -> bytes:
             ))
         if val is not None:
             return serialize([key, val])
-    
+
+    ## slow path: block until a key becomes available.
     loop = asyncio.get_event_loop()
     future: asyncio.Future = loop.create_future()
+
     for key in keys:
-        waiter_registry.register(key, future)
+        waiter_registry.register(key, future, ctx.db.lpop)
+
+    ## callback when coroutine exists
+    future.add_done_callback(_make_cleanup(keys))
 
     try:
-        wait_timeout = timeout if timeout > 0 else None  # 0 means block forever
-        ready_key = await asyncio.wait_for(asyncio.shield(future), timeout=wait_timeout)
+        wait_timeout = timeout if timeout > 0 else None 
+        ready_key, val = await asyncio.wait_for(asyncio.shield(future), timeout=wait_timeout)
 
     except asyncio.TimeoutError:
         for key in keys:
             waiter_registry.cancel(key, future)
-        return b"*-1\r\n"  
-
-    val = ctx.db.lpop(ready_key)
-
-    for key in keys:
-        if key != ready_key:
-            waiter_registry.cancel(key, future)
-
-    if val is None:
         return b"*-1\r\n"
     return serialize([ready_key, val])
 
@@ -146,27 +152,19 @@ async def brpop(ctx: Context, args: List[bytes]) -> bytes:
             ))
         if val is not None:
             return serialize([key, val])
-    
     loop = asyncio.get_event_loop()
     future: asyncio.Future = loop.create_future()
+
     for key in keys:
-        waiter_registry.register(key, future)
+        waiter_registry.register(key, future, ctx.db.rpop)
+    future.add_done_callback(_make_cleanup(keys))
 
     try:
-        wait_timeout = timeout if timeout > 0 else None  # 0 means block forever
-        ready_key = await asyncio.wait_for(asyncio.shield(future), timeout=wait_timeout)
+        wait_timeout = timeout if timeout > 0 else None 
+        ready_key, val = await asyncio.wait_for(asyncio.shield(future), timeout=wait_timeout)
 
     except asyncio.TimeoutError:
         for key in keys:
             waiter_registry.cancel(key, future)
-        return b"*-1\r\n"  
-
-    val = ctx.db.rpop(ready_key)
-
-    for key in keys:
-        if key != ready_key:
-            waiter_registry.cancel(key, future)
-
-    if val is None:
         return b"*-1\r\n"
     return serialize([ready_key, val])

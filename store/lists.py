@@ -15,19 +15,14 @@ class ListStoreMixin:
         ## inserts left to right
         for v in values:
             current.insert(0, v)
-        """
-        After the push is committed, wake the first sleeping client if any.
-        notify() will resolve their future with the key name, causing their
-        coroutine to resume and perform the actual pop.
-        """
-        waiter_registry.notify(key)
+        ## waking up first sleeping client for handling 
+        waiter_registry.notify_and_pop(key)
         return len(current)
     
     def rpush(self, key:bytes, *values: bytes) -> int:
         self._assert_type(key, T_LIST)
         current = self._get_or_none(key)
 
-        # store list directly into _data
         if current is None: 
             current = []
             self._data[key] = current 
@@ -35,7 +30,7 @@ class ListStoreMixin:
         for v in values:
             current.append(v)
 
-        waiter_registry.notify(key)
+        waiter_registry.notify_and_pop(key)
         return len(current)
     
     def lpop(self, key:bytes, count: Optional[int] = None) -> int:
