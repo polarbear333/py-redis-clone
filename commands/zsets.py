@@ -50,6 +50,15 @@ async def zrank(ctx: Context, args: List[bytes]) -> bytes:
     except ValueError as exc:
         return serialize(RESPError(str(exc)))
 
+@command("ZREVRANK")
+async def zrevrank(ctx: Context, args: List[bytes]) -> bytes:
+    if len(args) != 2:
+        return _wrong_arity("zrevrank")
+    try:
+        return serialize(ctx.db.zrevrank(args[0], args[1]))
+    except ValueError as exc:
+        return serialize(RESPError(str(exc)))
+
 @command("ZRANGE")
 async def zrange(ctx: Context, args: List[bytes]) -> bytes:
     if len(args) != 3:
@@ -58,6 +67,48 @@ async def zrange(ctx: Context, args: List[bytes]) -> bytes:
         start = _parse_int(args[1])
         stop = _parse_int(args[2])
         return serialize(ctx.db.zrange(args[0], start, stop))
+    except ValueError as exc:
+        return serialize(RESPError(str(exc)))
+
+@command("ZREVRANGE")
+async def zrevrange(ctx: Context, args: List[bytes]) -> bytes:
+    if len(args) != 3:
+        return _wrong_arity("zrevrange")
+    try:
+        start = _parse_int(args[1])
+        stop = _parse_int(args[2])
+        return serialize(ctx.db.zrevrange(args[0], start, stop))
+    except ValueError as exc:
+        return serialize(RESPError(str(exc)))
+
+@command("ZRANGEBYSCORE")
+async def zrangebyscore(ctx: Context, args: List[bytes]) -> bytes:
+    if len(args) < 3:
+        return _wrong_arity("zrangebyscore")
+    try:
+        key = args[0]
+        min_score = _parse_score(args[1])
+        max_score = _parse_score(args[2])
+        offset = 0
+        count = -1
+
+        rest = args[3:]
+        i = 0
+        while i < len(rest):
+            token = rest[i].upper()
+            if token == b"LIMIT":
+                if i + 2 >= len(rest):
+                    return serialize(RESPError("syntax error"))
+                try:
+                    offset = int(rest[i + 1])
+                    count  = int(rest[i + 2])
+                except ValueError:
+                    return serialize(RESPError("value is not an integer or out of range"))
+                i += 3
+            else:
+                return serialize(RESPError("syntax error"))
+
+        return serialize(ctx.db.zrangebyscore(key, min_score, max_score, offset, count))
     except ValueError as exc:
         return serialize(RESPError(str(exc)))
 

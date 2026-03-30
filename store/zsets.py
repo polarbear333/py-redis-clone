@@ -16,7 +16,7 @@ class ZSetStoreMixin:
         zset = self._get_or_create_zset(key)
         added = 0
         for i in range(0, len(pairs), 2):
-            score = float(pairs[i])   
+            score = float(pairs[i])
             member = pairs[i + 1]
             if zset.add(member, score):
                 added += 1
@@ -47,6 +47,13 @@ class ZSetStoreMixin:
             return None
         return zset.rank(member)
 
+    def zrevrank(self, key: bytes, member: bytes) -> Optional[int]:
+        self._assert_type(key, T_ZSET)
+        zset = self._get_or_none(key)
+        if zset is None:
+            return None
+        return zset.rev_rank(member)
+
     def zrange(self, key: bytes, start: int, stop: int) -> List[bytes]:
         self._assert_type(key, T_ZSET)
         zset = self._get_or_none(key)
@@ -63,6 +70,27 @@ class ZSetStoreMixin:
         if start > stop:
             return []
         return zset.range_by_rank(start, stop)
+
+    def zrevrange(self, key: bytes, start: int, stop: int) -> List[bytes]:
+        self._assert_type(key, T_ZSET)
+        zset = self._get_or_none(key)
+        if zset is None:
+            return []
+        return zset.rev_range(start, stop)
+
+    def zrangebyscore(
+        self,
+        key: bytes,
+        min_score: float,
+        max_score: float,
+        offset: int = 0,
+        count: int = -1,
+    ) -> List[bytes]:
+        self._assert_type(key, T_ZSET)
+        zset = self._get_or_none(key)
+        if zset is None:
+            return []
+        return zset.range_by_score(min_score, max_score, offset=offset, count=count)
 
     def zcount(self, key: bytes, min_score: float, max_score: float) -> int:
         self._assert_type(key, T_ZSET)

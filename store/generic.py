@@ -1,4 +1,5 @@
-from typing import List
+import random as _random
+from typing import List, Optional
 from .value_types import T_NONE, type_name_for
 
 class GenericStoreMixin:
@@ -58,3 +59,28 @@ class GenericStoreMixin:
                 expired.append(key)
                 self._delete_key(key)
         return len(expired)
+
+    def rename(self, key: bytes, newkey: bytes) -> None:
+        if not self._has_value(key):
+            raise ValueError("ERR no such key")
+        value = self._data[key]
+        expiry = self._expiry.get(key)
+        self._delete_key(newkey)
+        self._data[newkey] = value
+        if expiry is not None:
+            self._expiry[newkey] = expiry
+        self._delete_key(key)
+
+    def renamenx(self, key: bytes, newkey: bytes) -> int:
+        if not self._has_value(key):
+            raise ValueError("ERR no such key")
+        if self._has_value(newkey):
+            return 0
+        self.rename(key, newkey)
+        return 1
+
+    def randomkey(self) -> Optional[bytes]:
+        self.sweep_expired()
+        if not self._data:
+            return None
+        return _random.choice(list(self._data.keys()))

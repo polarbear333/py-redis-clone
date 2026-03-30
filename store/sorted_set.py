@@ -157,6 +157,12 @@ class SortedSet:
             
         raise RuntimeError(f"Internal state corrupted: {member!r} in dict but not in skiplist")
 
+    def rev_rank(self, member: bytes) -> Optional[int]:
+        r = self.rank(member)
+        if r is None:
+            return None
+        return self.length - 1 - r
+
     def _get_element_by_rank(self, rank_idx: int) -> Optional[SkipListNode]:
         traversed = 0
         x = self.header
@@ -184,6 +190,61 @@ class SortedSet:
 
     def range(self, start: int, stop: int) -> List[bytes]:
         return self.range_by_rank(start, stop)
+
+    def range_by_score(
+        self,
+        min_score: float,
+        max_score: float,
+        offset: int = 0,
+        count: int = -1,
+    ) -> List[bytes]:
+        """Return members with min_score <= score <= max_score (ascending).
+
+        offset / count mirror the LIMIT clause of ZRANGEBYSCORE.
+        count == -1 means 'return all remaining'.
+        """
+        if min_score > max_score or self.length == 0:
+            return []
+
+        # Advance past all nodes whose score is strictly less than min_score
+        x = self.header
+        for i in range(self.level - 1, -1, -1):
+            while x.level[i].forward and x.level[i].forward.score < min_score:
+                x = x.level[i].forward
+        x = x.level[0].forward
+
+        result: List[bytes] = []
+        skipped = 0
+        while x and x.score <= max_score:
+            if skipped < offset:
+                skipped += 1
+            else:
+                result.append(x.member)
+                if count != -1 and len(result) >= count:
+                    break
+            x = x.level[0].forward
+        return result
+
+    def rev_range(self, start: int, stop: int) -> List[bytes]:
+        """Return members in descending score order (ZREVRANGE semantics).
+
+        start=0 is the member with the highest score.
+        Negative indices are supported.
+        """
+        length = self.length
+        if length == 0:
+            return []
+        if start < 0:
+            start = max(0, length + start)
+        if stop < 0:
+            stop = length + stop
+        stop = min(stop, length - 1)
+        if start > stop or start >= length:
+            return []
+        # Map descending [start, stop] to ascending indices, then reverse
+        fwd_start = length - 1 - stop
+        fwd_stop  = length - 1 - start
+        return list(reversed(self.range_by_rank(fwd_start, fwd_stop)))
 
     def count(self, min_score: float, max_score: float) -> int:
         if min_score > max_score or self.length == 0:

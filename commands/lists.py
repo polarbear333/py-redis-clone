@@ -139,7 +139,7 @@ async def brpop(ctx: Context, args: List[bytes]) -> bytes:
     keys = args[:-1]
     for key in keys:
         try:
-            val = ctx.db.lpop(key)
+            val = ctx.db.rpop(key)
         except ValueError:
             return serialize(RESPError(
                 "WRONGTYPE Operation against a key holding the wrong kind of value"

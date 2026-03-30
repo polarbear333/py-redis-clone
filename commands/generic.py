@@ -7,9 +7,9 @@ def _wrong_arity(name: str) -> bytes:
 
 def _parse_int(raw: bytes) -> int:
     return int(raw)
-    
+
 @command("PING")
-async def ping(args: List[bytes]) -> bytes:
+async def ping(ctx: Context, args: List[bytes]) -> bytes:
     if not args:
         return serialize("PONG")
     if len(args) == 1:
@@ -17,7 +17,7 @@ async def ping(args: List[bytes]) -> bytes:
     return _wrong_arity("ping")
 
 @command("ECHO")
-async def echo(args: List[bytes]) -> bytes:
+async def echo(ctx: Context, args: List[bytes]) -> bytes:
     if len(args) != 1:
         return _wrong_arity("echo")
     return serialize(args[0])
@@ -45,3 +45,28 @@ async def type_cmd(ctx: Context, args: List[bytes]) -> bytes:
     if len(args) != 1:
         return _wrong_arity("type")
     return serialize(ctx.db.type(args[0]))
+
+@command("RENAME")
+async def rename(ctx: Context, args: List[bytes]) -> bytes:
+    if len(args) != 2:
+        return _wrong_arity("rename")
+    try:
+        ctx.db.rename(args[0], args[1])
+        return serialize("OK")
+    except ValueError as exc:
+        return serialize(RESPError(str(exc)))
+
+@command("RENAMENX")
+async def renamenx(ctx: Context, args: List[bytes]) -> bytes:
+    if len(args) != 2:
+        return _wrong_arity("renamenx")
+    try:
+        return serialize(ctx.db.renamenx(args[0], args[1]))
+    except ValueError as exc:
+        return serialize(RESPError(str(exc)))
+
+@command("RANDOMKEY")
+async def randomkey(ctx: Context, args: List[bytes]) -> bytes:
+    if args:
+        return _wrong_arity("randomkey")
+    return serialize(ctx.db.randomkey())
