@@ -5,7 +5,7 @@ from .lists import ListStoreMixin
 from .hashes import HashStoreMixin
 from .redis_set import SetStoreMixin
 from .zsets import ZSetStoreMixin
-from .persistence_mixin import PersistenceMixin
+from .persistence import PersistenceMixin
 
 class DataStore(
     ZSetStoreMixin,

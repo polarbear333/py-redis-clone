@@ -15,8 +15,8 @@ class AOFWriter:
         data = serialize(command_list)
         async with self._lock:
             self._file.write(data)
+            self._file.flush()                       
             if self.policy == "always":
-                self._file.flush()
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, os.fsync, self._file.fileno())
 
@@ -44,7 +44,7 @@ async def replay(path: str, dispatch_fn: Callable) -> int:
         try:
             command_list, consumed = deserialize(raw_data)
             del raw_data[:consumed]
-            await dispatch_fn(command_list, aof_writer=None)
+            await dispatch_fn(command_list)   
             count += 1
         except IncompleteData:
             break

@@ -1,19 +1,26 @@
-import asyncio
-from . import command, Context
-from handler import serialize
-from handler.deserialize import RESPError
+import time
+from typing import Tuple, Dict, Any
+from persistence import rdb
 
-@command("BGSAVE")
-async def bgsave(ctx: Context, args: list[bytes]) -> bytes:
-    if args:
-        return serialize(RESPError("wrong number of arguments for 'bgsave'"))
-    loop = asyncio.get_running_loop()
-    asyncio.create_task(loop.run_in_executor(None, ctx.db.save_rdb))
-    return b"+Background saving started\r\n"
+class PersistenceMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._last_save: int = 0 
 
-@command("BGREWRITEAOF")
-async def bgrewriteaof(ctx: Context, args: list[bytes]) -> bytes:
-    if args:
-        return serialize(RESPError("wrong number of arguments for 'bgrewriteaof'"))
-    return b"+Background append only file rewriting started\r\n"
+    def get_snapshot(self) -> Tuple[Dict[bytes, Any], Dict[bytes, float]]:
+        return self._data.copy(), self._expiry.copy()
 
+    def save_rdb(self) -> None:
+        if not self.config:
+            return
+        data, expiry = self.get_snapshot()
+        rdb.dump(data, expiry, self.config.rdb_path)
+        now = int(time.time())
+        self._last_save = max(now, self._last_save + 1)
+
+    def load_rdb(self) -> None:
+        if not self.config:
+            return
+        data, expiry = rdb.load(self.config.rdb_path)
+        self._data.update(data)
+        self._expiry.update(expiry)

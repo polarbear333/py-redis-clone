@@ -21,6 +21,24 @@ async def pexpire(ctx: Context, args: List[bytes]) -> bytes:
     except ValueError:
         return serialize(RESPError("value is not an integer or out of range"))
 
+@command("PEXPIREAT")
+async def pexpireat(ctx: Context, args: List[bytes]) -> bytes:
+    if len(args) != 2:
+        return _wrong_arity("pexpireat")
+    try:
+        return serialize(ctx.db.pexpireat(args[0], _parse_int(args[1])))
+    except ValueError:
+        return serialize(RESPError("value is not an integer or out of range"))
+
+@command("EXPIREAT")
+async def expireat(ctx: Context, args: List[bytes]) -> bytes:
+    if len(args) != 2:
+        return _wrong_arity("expireat")
+    try:
+        return serialize(ctx.db.expireat(args[0], _parse_int(args[1])))
+    except ValueError:
+        return serialize(RESPError("value is not an integer or out of range"))
+
 @command("TTL")
 async def ttl(ctx: Context, args: List[bytes]) -> bytes:
     if len(args) != 1:

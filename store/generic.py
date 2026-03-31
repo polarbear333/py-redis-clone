@@ -31,6 +31,12 @@ class GenericStoreMixin:
     def pexpire(self, key: bytes, ms: int) -> int:
         return self._set_expiry_ms(key, ms)
 
+    def pexpireat(self, key: bytes, abs_ms: int) -> int:
+        return self._set_expiry_at_ms(key, abs_ms)
+
+    def expireat(self, key: bytes, abs_sec: int) -> int:
+        return self._set_expiry_at_ms(key, abs_sec * 1000)
+
     def ttl(self, key: bytes) -> int:
         if not self._has_value(key):
             return -2

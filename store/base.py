@@ -38,6 +38,16 @@ class StoreBase:
         self._expiry[key] = self._now_ms() + ttl_ms
         return 1
 
+    def _set_expiry_at_ms(self, key: bytes, abs_ms: int) -> int:
+        """Set expiry as an absolute POSIX millisecond timestamp (for PEXPIREAT/EXPIREAT)."""
+        if not self._has_value(key):
+            return 0
+        if abs_ms <= self._now_ms():
+            self._delete_key(key)
+            return 1
+        self._expiry[key] = float(abs_ms)
+        return 1
+
     def _assert_type(self, key: bytes, expected_type: str) -> None:
         value = self._get_or_none(key)
         if value is None:
