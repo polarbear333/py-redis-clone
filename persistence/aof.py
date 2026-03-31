@@ -1,4 +1,3 @@
-# persistence/aof.py
 import os
 import asyncio
 from typing import Callable
