@@ -5,6 +5,7 @@ from .lists import ListStoreMixin
 from .hashes import HashStoreMixin
 from .redis_set import SetStoreMixin
 from .zsets import ZSetStoreMixin
+from .persistence_mixin import PersistenceMixin
 
 class DataStore(
     ZSetStoreMixin,
@@ -13,8 +14,9 @@ class DataStore(
     ListStoreMixin,
     StringStoreMixin,
     GenericStoreMixin,
+    PersistenceMixin,
     StoreBase,
 ):
-    pass
-
-db = DataStore()
+    def __init__(self, config=None):
+        super().__init__()
+        self.config = config

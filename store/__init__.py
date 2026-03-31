@@ -1,2 +1,4 @@
 from .core import DataStore
-__all__ = ["DataStore"]
+from . import waiters
+
+__all__ = ["DataStore", "waiters"]
