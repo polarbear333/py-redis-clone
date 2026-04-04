@@ -14,8 +14,7 @@ class AOFWriter:
     async def append(self, command_list: list[bytes]) -> None:
         data = serialize(command_list)
         async with self._lock:
-            self._file.write(data)
-            self._file.flush()                       
+            self._file.write(data)                    
             if self.policy == "always":
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, os.fsync, self._file.fileno())
@@ -28,7 +27,7 @@ class AOFWriter:
             await asyncio.sleep(1.0)
             async with self._lock:
                 self._file.flush()
-            await loop.run_in_executor(None, os.fsync, self._file.fileno())
+                await loop.run_in_executor(None, os.fsync, self._file.fileno())
 
     def close(self) -> None:
         self._file.flush()
