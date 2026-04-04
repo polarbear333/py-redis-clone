@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional
 
@@ -15,6 +16,7 @@ class AppContext:
     config: PersistenceConfig
     middleware: List["Middleware"] = field(default_factory=list)
     aof_writer: Optional["AOFWriter"] = None
-
+    bg_tasks: List[asyncio.Task] = field(default_factory=list)
+    
     # transaction_manager: Optional[TransactionManager] = None
     # repl_manager: Optional[ReplicationManager] = None

@@ -26,6 +26,7 @@ async def boot(config: PersistenceConfig) -> AppContext:
     logger.info(f"Loading RDB from {config.rdb_path}...")
     store.load_rdb()
     aof_writer: Optional[AOFWriter] = None
+    fsync_task = None
     if config.aof_enabled:
         logger.info(f"Replaying AOF from {config.aof_path}...")
         async def dispatch_wrapper(cmd_list: list) -> bytes:
@@ -33,11 +34,16 @@ async def boot(config: PersistenceConfig) -> AppContext:
         ops = await replay(config.aof_path, dispatch_wrapper)
         logger.info(f"Replayed {ops} operations from AOF.")
         aof_writer = AOFWriter(config.aof_path, config.aof_fsync_policy)
-        asyncio.create_task(aof_writer.fsync_loop())
+        fsync_task = asyncio.create_task(aof_writer.fsync_loop())
 
     ctx = AppContext(store=store, config=config, aof_writer=aof_writer)
+    if fsync_task:
+        ctx.bg_tasks.append(fsync_task)
     if aof_writer:
         ctx.middleware.append(AOFMiddleware(aof_writer))
     # ctx.middleware.append(ReplicationMiddleware(ctx.repl_manager))  
-    asyncio.create_task(_rdb_save_loop(store, config.rdb_save_interval))
+    if config.rdb_save_interval > 0:
+        ctx.bg_tasks.append(
+            asyncio.create_task(_rdb_save_loop(store, config.rdb_save_interval))
+        )
     return ctx

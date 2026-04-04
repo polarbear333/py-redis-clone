@@ -88,8 +88,11 @@ async def start_server(app_ctx: AppContext, host: str = "127.0.0.1", port: int =
         async with server:
             await server.serve_forever()
     finally:
-        expiry_task.cancel()
-        try:
-            await expiry_task
-        except asyncio.CancelledError:
-            pass
+        all_tasks = [expiry_task] + app_ctx.bg_tasks
+        for task in all_tasks:
+            task.cancel()
+
+        await asyncio.gather(*all_tasks, return_exceptions=True)
+
+        if app_ctx.aof_writer:
+            app_ctx.aof_writer.close()

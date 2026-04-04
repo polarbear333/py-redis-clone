@@ -55,6 +55,8 @@ def _parse_bulk_string(data: bytes | bytearray, pos: int) -> Tuple[Optional[byte
     
     if body_end + 2 > len(data):
         raise IncompleteData()
+    if data[body_end:body_end + 2] != CRLF:
+        raise RESPError("missing CLRF after bulk string data")
     return bytes(data[body_start:body_end]), body_end + 2
 
 def _parse_array(data: bytes | bytearray, pos: int) -> Tuple[Optional[List[Any]], int]:

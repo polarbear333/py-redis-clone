@@ -20,7 +20,6 @@ _ABSOLUTE_EXPIRY_CMDS = {
     b"PEXPIREAT",  
 }
 
-
 class AOFMiddleware:
     def __init__(self, aof_writer: AOFWriter) -> None:
         self._writer = aof_writer

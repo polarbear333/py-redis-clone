@@ -22,9 +22,8 @@ async def bgsave(ctx: Context, args: List[bytes]) -> bytes:
     loop = asyncio.get_running_loop()
     async def _do_bgsave() -> None:
         await loop.run_in_executor(None, ctx.db.save_rdb)
-
     asyncio.create_task(_do_bgsave())
-    return b"+Background saving started\r\n"
+    return b"+Background saving started\r\n"    
 
 @command("LASTSAVE")
 async def lastsave(ctx: Context, args: List[bytes]) -> bytes:
