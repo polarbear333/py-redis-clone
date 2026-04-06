@@ -9,28 +9,30 @@ class ZSetStoreMixin:
     def _get_or_create_zset(self, key: bytes) -> SortedSet:
         self._assert_type(key, T_ZSET)
         if self._get_or_none(key) is None:
-            self._data[key] = SortedSet()
+            self._store_value(key, SortedSet())
         return self._data[key]
 
     def zadd(self, key: bytes, *pairs: bytes) -> int:
-        zset = self._get_or_create_zset(key)
-        added = 0
-        for i in range(0, len(pairs), 2):
-            score = float(pairs[i])
-            member = pairs[i + 1]
-            if zset.add(member, score):
-                added += 1
-        return added
+        with self._rw_lock:
+            zset = self._get_or_create_zset(key)
+            added = 0
+            for i in range(0, len(pairs), 2):
+                score = float(pairs[i])
+                member = pairs[i + 1]
+                if zset.add(member, score):
+                    added += 1
+            return added
 
     def zrem(self, key: bytes, *members: bytes) -> int:
-        self._assert_type(key, T_ZSET)
-        zset = self._get_or_none(key)
-        if zset is None:
-            return 0
-        removed = sum(1 for m in members if zset.remove(m))
-        if not zset:
-            self._delete_key(key)
-        return removed
+        with self._rw_lock:
+            self._assert_type(key, T_ZSET)
+            zset = self._get_or_none(key)
+            if zset is None:
+                return 0
+            removed = sum(1 for m in members if zset.remove(m))
+            if not zset:
+                self._delete_key(key)
+            return removed
 
     def zscore(self, key: bytes, member: bytes) -> Optional[str]:
         self._assert_type(key, T_ZSET)

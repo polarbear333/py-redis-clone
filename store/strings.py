@@ -17,7 +17,7 @@ class StringStoreMixin:
         if xx and not exists:
             return False
 
-        self._data[key] = value
+        self._store_value(key, value)
         self._clear_expiry(key)
 
         if ex is not None:
@@ -44,7 +44,7 @@ class StringStoreMixin:
         except ValueError as exc:
             raise ValueError("ERR value is not an integer or out of range") from exc
         next_value = current + amount
-        self._data[key] = str(next_value).encode("utf-8")
+        self._store_value(key, str(next_value).encode("utf-8"))
         return next_value
 
     def decrby(self, key: bytes, amount: int) -> int:
@@ -56,7 +56,7 @@ class StringStoreMixin:
         if current is None:
             current = b""
         new_value = current + value
-        self._data[key] = new_value
+        self._store_value(key, new_value)
         return len(new_value)
 
     def strlen(self, key: bytes) -> int:
@@ -66,8 +66,7 @@ class StringStoreMixin:
 
     def mset(self, *pairs: bytes) -> None:
         for i in range(0, len(pairs), 2):
-            self._data[pairs[i]] = pairs[i + 1]
-            # mset clears any existing expiry, matching real Redis behaviour
+            self._store_value(pairs[i], pairs[i + 1])
             self._clear_expiry(pairs[i])
 
     def mget(self, *keys: bytes) -> List[Optional[bytes]]:

@@ -1,4 +1,5 @@
 import time
+import threading
 from typing import Any, Dict
 from .value_types import WRONG_TYPE_ERR, type_name_for
 
@@ -6,6 +7,7 @@ class StoreBase:
     def __init__(self) -> None:
         self._data: Dict[bytes, Any] = {}
         self._expiry: Dict[bytes, float] = {}
+        self._rw_lock = threading.RLock()
 
     def _now_ms(self) -> float:
         return time.time() * 1000
@@ -14,9 +16,15 @@ class StoreBase:
         expires_at = self._expiry.get(key)
         return expires_at is not None and self._now_ms() >= expires_at
 
+    def _store_value(self, key: bytes, value: Any) -> None:
+        # Write a value to _data under the lock
+        with self._rw_lock:
+            self._data[key] = value
+
     def _delete_key(self, key: bytes) -> None:
-        self._data.pop(key, None)
-        self._expiry.pop(key, None)
+        with self._rw_lock:
+            self._data.pop(key, None)
+            self._expiry.pop(key, None)
 
     def _get_or_none(self, key: bytes) -> Any:
         if self._is_expired(key):
@@ -30,23 +38,25 @@ class StoreBase:
         self._expiry.pop(key, None)
 
     def _set_expiry_ms(self, key: bytes, ttl_ms: int) -> int:
-        if not self._has_value(key):
-            return 0
-        if ttl_ms <= 0:
-            self._delete_key(key)
+        with self._rw_lock:
+            if not self._has_value(key):
+                return 0
+            if ttl_ms <= 0:
+                self._delete_key(key)
+                return 1
+            self._expiry[key] = self._now_ms() + ttl_ms
             return 1
-        self._expiry[key] = self._now_ms() + ttl_ms
-        return 1
 
     def _set_expiry_at_ms(self, key: bytes, abs_ms: int) -> int:
         """Set expiry as an absolute POSIX millisecond timestamp (for PEXPIREAT/EXPIREAT)."""
-        if not self._has_value(key):
-            return 0
-        if abs_ms <= self._now_ms():
-            self._delete_key(key)
+        with self._rw_lock:
+            if not self._has_value(key):
+                return 0
+            if abs_ms <= self._now_ms():
+                self._delete_key(key)
+                return 1
+            self._expiry[key] = float(abs_ms)
             return 1
-        self._expiry[key] = float(abs_ms)
-        return 1
 
     def _assert_type(self, key: bytes, expected_type: str) -> None:
         value = self._get_or_none(key)

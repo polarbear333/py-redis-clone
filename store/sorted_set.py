@@ -273,3 +273,10 @@ class SortedSet:
 
     def zcard(self) -> int:
         return self.length
+
+    def __deepcopy__(self, memo: dict) -> "SortedSet":
+        new_zset = SortedSet()
+        for member, score in self._scores.items():
+            new_zset.add(member, score)
+        memo[id(self)] = new_zset
+        return new_zset

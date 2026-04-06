@@ -5,31 +5,33 @@ class SetStoreMixin:
     def _get_or_create_set(self, key: bytes) -> set:
         self._assert_type(key, T_SET)
         if self._get_or_none(key) is None:
-            self._data[key] = set()
+            self._store_value(key, set())
         return self._data[key]
 
     def sadd(self, key: bytes, *members: bytes) -> int:
-        s = self._get_or_create_set(key)
-        added = 0
-        for member in members:
-            if member not in s:
-                s.add(member)
-                added += 1
-        return added
+        with self._rw_lock:
+            s = self._get_or_create_set(key)
+            added = 0
+            for member in members:
+                if member not in s:
+                    s.add(member)
+                    added += 1
+            return added
 
     def srem(self, key: bytes, *members: bytes) -> int:
-        self._assert_type(key, T_SET)
-        s = self._get_or_none(key)
-        if s is None:
-            return 0
-        removed = 0
-        for member in members:
-            if member in s:
-                s.discard(member)
-                removed += 1
-        if not s:
-            self._delete_key(key)
-        return removed
+        with self._rw_lock:
+            self._assert_type(key, T_SET)
+            s = self._get_or_none(key)
+            if s is None:
+                return 0
+            removed = 0
+            for member in members:
+                if member in s:
+                    s.discard(member)
+                    removed += 1
+            if not s:
+                self._delete_key(key)
+            return removed
 
     def sismember(self, key: bytes, member: bytes) -> int:
         self._assert_type(key, T_SET)

@@ -1,3 +1,4 @@
+import copy
 import time
 from typing import Tuple, Dict, Any
 from persistence import rdb
@@ -8,7 +9,8 @@ class PersistenceMixin:
         self._last_save: int = 0 
 
     def get_snapshot(self) -> Tuple[Dict[bytes, Any], Dict[bytes, float]]:
-        return self._data.copy(), self._expiry.copy()
+        with self._rw_lock:
+            return copy.deepcopy(self._data), self._expiry.copy()
 
     def save_rdb(self) -> None:
         if not self.config:

@@ -60,37 +60,40 @@ class GenericStoreMixin:
         return 1
 
     def sweep_expired(self) -> int:
-        expired = []
-        for key, exp in list(self._expiry.items()):
-            if exp <= self._now_ms():
-                expired.append(key)
-                self._delete_key(key)
-        return len(expired)
+        with self._rw_lock:
+            expired = []
+            for key, exp in list(self._expiry.items()):
+                if exp <= self._now_ms():
+                    expired.append(key)
+                    self._delete_key(key)
+            return len(expired)
 
     def _probabilistic_expire(self, sample: int = 20) -> int:
         ## sample up to sample of keys from the expiry index and delete any that have passed their deadline.
-        if not self._expiry:
-            return 0
-        keys = _random.sample(list(self._expiry.keys()), min(sample, len(self._expiry)))
-        deleted = 0
-        now = self._now_ms()
-        for key in keys:
-            exp = self._expiry.get(key)
-            if exp is not None and exp <= now:
-                self._delete_key(key)
-                deleted += 1
-        return deleted
+        with self._rw_lock:
+            if not self._expiry:
+                return 0
+            keys = _random.sample(list(self._expiry.keys()), min(sample, len(self._expiry)))
+            deleted = 0
+            now = self._now_ms()
+            for key in keys:
+                exp = self._expiry.get(key)
+                if exp is not None and exp <= now:
+                    self._delete_key(key)
+                    deleted += 1
+            return deleted
 
     def rename(self, key: bytes, newkey: bytes) -> None:
-        if not self._has_value(key):
-            raise ValueError("ERR no such key")
-        value = self._data[key]
-        expiry = self._expiry.get(key)
-        self._delete_key(newkey)
-        self._data[newkey] = value
-        if expiry is not None:
-            self._expiry[newkey] = expiry
-        self._delete_key(key)
+        with self._rw_lock:
+            if not self._has_value(key):
+                raise ValueError("ERR no such key")
+            value = self._data[key]
+            expiry = self._expiry.get(key)
+            self._delete_key(newkey)
+            self._data[newkey] = value
+            if expiry is not None:
+                self._expiry[newkey] = expiry
+            self._delete_key(key)
 
     def renamenx(self, key: bytes, newkey: bytes) -> int:
         if not self._has_value(key):
