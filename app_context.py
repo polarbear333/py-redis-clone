@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, List, Optional
 
@@ -10,6 +11,13 @@ from transaction import WatchRegistry
 if TYPE_CHECKING:
     from middleware.base import Middleware
     from persistence.aof import AOFWriter
+
+@dataclass
+class ServerStats:
+    start_time: float = field(default_factory=time.time)
+    commands_processed: int = 0
+    connected_clients: int = 0
+    total_connections_received: int = 0
 
 @dataclass
 class AppContext:

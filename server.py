@@ -13,24 +13,29 @@ logger = logging.getLogger(__name__)
 
 async def dispatch_core(
         command_list: List[bytes],
-        store: DataStore,
+        app_ctx: AppContext,
         tx_state: Optional[ClientState] = None,
         watch_registry=None,
         dispatch_fn: Optional[DispatchFn] = None,
     ) -> bytes:
     cmd_name = command_list[0].upper()
     handler = REGISTRY.get(cmd_name)
+    app_ctx.stats.commands_processed += 1 
     if not handler:
         return serialize(RESPError(f"unknown command '{cmd_name.decode()}'"))
 
     ctx = Context(
-        db=store,
+        db=app_ctx.store,
         tx_state=tx_state,
         watch_registry=watch_registry,
         dispatch=dispatch_fn,
+        app_ctx=app_ctx,
     )
     try:
-        return await handler(ctx, command_list[1:])
+        result = await handler(ctx, command_list[1:])
+        if app_ctx is not None:
+            app_ctx.stats.commands_processed += 1
+        return result
     except RESPError as e:
         return serialize(e)
     except Exception as e:
@@ -55,6 +60,7 @@ def _build_pipeline(app_ctx: AppContext):
                 tx_state=tx_state,
                 watch_registry=app_ctx.watch_registry,
                 dispatch_fn=core,
+                app_ctx=app_ctx,
             )
 
         pipeline: DispatchFn = core
@@ -77,9 +83,13 @@ async def handle_client(
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
         make_pipeline,
+        app_ctx: Optional[AppContext] = None,
     ) -> None:
     addr = writer.get_extra_info('peername')
     logger.info(f"client connected: {addr}")
+    if app_ctx is not None:
+        app_ctx.stats.connected_clients += 1
+        app_ctx.stats.total_connections_received += 1
 
     tx_state = ClientState()
     pipeline = make_pipeline(tx_state)
@@ -115,6 +125,8 @@ async def handle_client(
             except (ConnectionResetError, BrokenPipeError):
                 break
     finally:
+        if app_ctx is not None:
+            app_ctx.stats.connected_clients -= 1
         logger.info(f"client disconnected: {addr}")
         writer.close()
         await writer.wait_closed()
@@ -128,7 +140,7 @@ async def start_server(app_ctx: AppContext, host: str = "127.0.0.1", port: int =
     make_pipeline = _build_pipeline(app_ctx)
 
     async def client_cb(reader, writer):
-        await handle_client(reader, writer, make_pipeline)
+        await handle_client(reader, writer, make_pipeline, app_ctx)
 
     expiry_task = asyncio.create_task(_active_expiry_loop(app_ctx.store))
     server = await asyncio.start_server(client_cb, host, port)
