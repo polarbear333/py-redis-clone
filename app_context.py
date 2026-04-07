@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List, Optional
 
 from store import DataStore
 from config import PersistenceConfig
+from transaction import WatchRegistry
 
 if TYPE_CHECKING:
     from middleware.base import Middleware
@@ -17,6 +18,7 @@ class AppContext:
     middleware: List["Middleware"] = field(default_factory=list)
     aof_writer: Optional["AOFWriter"] = None
     bg_tasks: List[asyncio.Task] = field(default_factory=list)
-    
+    watch_registry: WatchRegistry = field(default_factory=WatchRegistry)
+
     # transaction_manager: Optional[TransactionManager] = None
     # repl_manager: Optional[ReplicationManager] = None

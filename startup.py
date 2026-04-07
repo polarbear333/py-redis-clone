@@ -25,6 +25,7 @@ async def boot(config: PersistenceConfig) -> AppContext:
     store = DataStore(config)
     logger.info(f"Loading RDB from {config.rdb_path}...")
     store.load_rdb()
+
     aof_writer: Optional[AOFWriter] = None
     fsync_task = None
     if config.aof_enabled:
@@ -37,11 +38,12 @@ async def boot(config: PersistenceConfig) -> AppContext:
         fsync_task = asyncio.create_task(aof_writer.fsync_loop())
 
     ctx = AppContext(store=store, config=config, aof_writer=aof_writer)
+    store._watch_registry = ctx.watch_registry
+
     if fsync_task:
         ctx.bg_tasks.append(fsync_task)
     if aof_writer:
         ctx.middleware.append(AOFMiddleware(aof_writer))
-    # ctx.middleware.append(ReplicationMiddleware(ctx.repl_manager))  
     if config.rdb_save_interval > 0:
         ctx.bg_tasks.append(
             asyncio.create_task(_rdb_save_loop(store, config.rdb_save_interval))

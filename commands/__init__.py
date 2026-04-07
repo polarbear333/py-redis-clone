@@ -1,9 +1,18 @@
-from typing import Callable, Dict, Awaitable, List, Protocol
+from typing import Callable, Dict, Awaitable, List, Optional, Protocol
 from store import DataStore
 
 class Context:
-    def __init__(self, db: DataStore) -> None:
+    def __init__(
+        self,
+        db: DataStore,
+        tx_state=None,
+        watch_registry=None,
+        dispatch: Optional[Callable[[List[bytes]], Awaitable[bytes]]] = None,
+    ) -> None:
         self.db = db
+        self.tx_state = tx_state        
+        self.watch_registry = watch_registry  
+        self.dispatch = dispatch        
 
 CommandHandler = Callable[["Context", List[bytes]], Awaitable[bytes]]
 REGISTRY: Dict[bytes, CommandHandler] = {}
@@ -15,4 +24,4 @@ def command(name: str) -> Callable[[CommandHandler], CommandHandler]:
         return func
     return decorator
 
-from . import generic, strings, expiry, lists, hashes, redis_set, zsets, persistence
+from . import generic, strings, expiry, lists, hashes, redis_set, zsets, persistence, transaction
