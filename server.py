@@ -20,7 +20,6 @@ async def dispatch_core(
     ) -> bytes:
     cmd_name = command_list[0].upper()
     handler = REGISTRY.get(cmd_name)
-    app_ctx.stats.commands_processed += 1 
     if not handler:
         return serialize(RESPError(f"unknown command '{cmd_name.decode()}'"))
 
@@ -56,11 +55,10 @@ def _build_pipeline(app_ctx: AppContext):
         async def core(command_list: List[bytes]) -> bytes:
             return await dispatch_core(
                 command_list,
-                app_ctx.store,
+                app_ctx,
                 tx_state=tx_state,
                 watch_registry=app_ctx.watch_registry,
                 dispatch_fn=core,
-                app_ctx=app_ctx,
             )
 
         pipeline: DispatchFn = core

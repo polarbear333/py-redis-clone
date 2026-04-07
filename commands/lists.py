@@ -114,7 +114,7 @@ async def blpop(ctx: Context, args: List[bytes]) -> bytes:
             return serialize([key, val])
 
     ## slow path: block until a key becomes available.
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     future: asyncio.Future = loop.create_future()
 
     for key in keys:
@@ -152,7 +152,7 @@ async def brpop(ctx: Context, args: List[bytes]) -> bytes:
             ))
         if val is not None:
             return serialize([key, val])
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     future: asyncio.Future = loop.create_future()
 
     for key in keys:
